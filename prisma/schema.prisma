@@ -1,0 +1,183 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model - stores user information
+model User {
+  id          Int      @id @default(autoincrement())
+  email       String   @unique
+  password    String
+  firstName   String?
+  lastName    String?
+  phone       String?
+  role        String   @default("user") // user, admin
+
+  // Verification & Security
+  isVerified  Boolean  @default(false)
+  isBlocked   Boolean  @default(false)
+  kycStatus   String   @default("pending") // pending, verified, rejected
+
+  // Relationships
+  wallet               Wallet?
+  sentTransactions     Transaction[]  @relation("FromUser")
+  receivedTransactions Transaction[]  @relation("ToUser")
+  notifications        Notification[]
+  auditLogsPerformed   AuditLog[]     @relation("AuditActor")
+  aiSessions           AiSession[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Wallet model - stores user's wallet and balance
+model Wallet {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  balance   Decimal  @default(0) @db.Decimal(15, 2)
+  isFrozen  Boolean  @default(false)
+
+  // Relationship
+  user      User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Transaction model - stores all transactions
+model Transaction {
+  id              Int      @id @default(autoincrement())
+  fromUserId      Int?
+  toUserId        Int?
+  amount          Decimal  @db.Decimal(15, 2)
+  balanceAfter    Decimal? @db.Decimal(15, 2)
+  status          String   @default("pending") // pending, completed, failed, refunded, reversed
+  transactionType String   // transfer, deposit, withdrawal, stripe_charge, refund
+  description     String?
+  referenceId     String?  @unique // idempotency key
+
+  // AI fields
+  aiCategory      String?           // AI-assigned category
+  aiCategoryConf  Float?            // confidence score 0-1
+  aiTags          String[]          // e.g. ['food', 'delivery', 'swiggy']
+
+  // Relationship to StripePayment (if this transaction came from Stripe)
+  stripePayment   StripePayment?
+
+  // Relationships
+  fromUser        User?    @relation("FromUser", fields: [fromUserId], references: [id])
+  toUser          User?    @relation("ToUser", fields: [toUserId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// StripePayment model - stores Stripe payment details
+model StripePayment {
+  id                      Int      @id @default(autoincrement())
+  userId                  Int
+  transactionId           Int      @unique
+  stripePaymentIntentId   String   @unique
+  amount                  Decimal  @db.Decimal(15, 2)
+  currency                String   @default("usd")
+  status                  String   // succeeded, processing, requires_payment_method, failed, canceled, refunded
+  paymentMethod           String?  // card, bank_account, etc
+  last4Digits             String?  // Last 4 digits of card
+  cardBrand               String?  // visa, mastercard, amex, etc
+  receiptEmail            String?
+  receiptUrl              String?
+  errorMessage            String?
+
+  // Webhook tracking
+  webhookReceived         Boolean  @default(false)
+  webhookReceivedAt       DateTime?
+
+  // Reconciliation tracking
+  reconcilationStatus     String   @default("pending") // pending, reconciled, failed
+  reconciliationTimestamp  DateTime?
+
+  // Retry tracking
+  retryCount              Int      @default(0)
+  lastRetryAt             DateTime?
+  maxRetries              Int      @default(3)
+
+  // Idempotency
+  idempotencyKey          String?  @unique
+
+  // Relationship
+  transaction             Transaction @relation(fields: [transactionId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// UpiPayment model
+model UpiPayment {
+  id                      Int      @id @default(autoincrement())
+  userId                  Int
+  razorpayOrderId         String   @unique
+  razorpayPaymentId       String?  @unique
+  amount                  Decimal  @db.Decimal(15, 2)
+  currency                String   @default("INR")
+  status                  String   @default("created")
+  description             String?
+  verifiedAt              DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Notification model
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  type      String   // transfer, alert, system, ai_insight
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  metadata  Json?    // flexible JSON for type-specific data
+
+  // Relationships
+  user      User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Audit log for admin actions
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  actorId     Int
+  action      String   // e.g. BLOCK_USER, FREEZE_WALLET, TRIGGER_REFUND
+  targetType  String   // USER, WALLET, TRANSACTION
+  targetId    Int
+  beforeState Json?    // snapshot before change
+  afterState  Json?    // snapshot after change
+  ipAddress   String?
+
+  // Relationships
+  actor       User     @relation("AuditActor", fields: [actorId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+// AI chat sessions
+model AiSession {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String?
+  messages  Json[]   // { role, content, timestamp }
+
+  // Relationships
+  user      User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

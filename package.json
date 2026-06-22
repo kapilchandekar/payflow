@@ -1,0 +1,48 @@
+{
+  "name": "payflow",
+  "version": "1.0.0",
+  "description": "PayFlow - Modern Payment & Wallet Platform",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "test:razorpay": "ts-node src/tests/run-tests.ts"
+  },
+  "keywords": [
+    "fintech",
+    "payment",
+    "wallet"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@prisma/client": "^5.22.0",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.6",
+    "bcrypt": "^6.0.0",
+    "bullmq": "^5.79.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^8.5.2",
+    "ioredis": "^5.11.1",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^8.0.10",
+    "prisma": "^5.22.0",
+    "razorpay": "^2.9.6",
+    "socket.io": "^4.8.3",
+    "stripe": "^22.2.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20.10.6",
+    "@types/nodemailer": "^8.0.0",
+    "@types/stripe": "^8.0.416",
+    "ts-node": "^10.9.2"
+  }
+}
