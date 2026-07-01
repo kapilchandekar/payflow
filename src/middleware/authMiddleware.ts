@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/auth';
+import { UnauthorizedError } from '../utils/errors';
 
 /**
  * Middleware to verify JWT token from Authorization header
@@ -15,9 +16,7 @@ export const authMiddleware = (
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ 
-        error: 'Authorization token missing' 
-      });
+      return next(new UnauthorizedError('Authorization token missing'));
     }
 
     // Extract token (remove "Bearer " prefix)
@@ -27,9 +26,7 @@ export const authMiddleware = (
     const decoded = verifyToken(token);
 
     if (!decoded) {
-      return res.status(401).json({ 
-        error: 'Invalid or expired token' 
-      });
+      return next(new UnauthorizedError('Invalid or expired token'));
     }
 
     // Add userId to request object for use in route handlers
@@ -39,8 +36,6 @@ export const authMiddleware = (
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
-    res.status(401).json({ 
-      error: 'Token verification failed' 
-    });
+    next(new UnauthorizedError('Token verification failed'));
   }
 };

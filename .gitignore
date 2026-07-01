@@ -14,9 +14,8 @@ dist/
 coverage/
 .nyc_output/
 /src/generated/prisma
-frontend/
 frontend/node_modules
 frontend/.env
+frontend/.env.local
 test-email.ts
 build
-*.log

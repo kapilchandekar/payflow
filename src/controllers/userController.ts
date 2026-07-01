@@ -7,7 +7,7 @@ import {
   validateName,
   validateRequiredFields
 } from '../services/validationService';
-import { BadRequestError, ConflictError, NotFoundError, ValidationError } from '../utils/errors';
+import { BadRequestError, ConflictError, NotFoundError, ValidationError, UnauthorizedError, ForbiddenError } from '../utils/errors';
 import { 
   sendWelcomeEmail, 
   sendLoginAlertEmail,
@@ -103,7 +103,7 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
 
     // Generate Verification Token
     const verifyToken = generateEmailVerificationToken(user.email);
-    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
     const verifyLink = `${FRONTEND_URL}/verify-email?token=${verifyToken}`;
 
     // Send verification email
@@ -168,11 +168,11 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     }
 
     if (user.isBlocked) {
-      return res.status(403).json({ error: 'Your account has been blocked. Please contact support.' });
+      throw new ForbiddenError('Your account has been blocked. Please contact support.');
     }
 
     if (!user.isVerified) {
-      return res.status(403).json({ error: 'Please verify your email address before logging in.' });
+      throw new ForbiddenError('Please verify your email address before logging in.');
     }
 
     // Verify password
@@ -313,12 +313,12 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
     const rfToken = req.cookies?.refreshToken || req.body.refreshToken;
 
     if (!rfToken) {
-      return res.status(401).json({ error: 'Refresh token is required' });
+      throw new UnauthorizedError('Refresh token is required');
     }
 
     const decoded = verifyToken(rfToken);
     if (!decoded || decoded.type !== 'refresh') {
-      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+      throw new UnauthorizedError('Invalid or expired refresh token');
     }
 
     const user = await prisma.user.findUnique({
@@ -326,7 +326,7 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
     });
 
     if (!user || user.isBlocked) {
-      return res.status(401).json({ error: 'User not found or blocked' });
+      throw new UnauthorizedError('User not found or blocked');
     }
 
     const newToken = generateToken(user.id, user.email);

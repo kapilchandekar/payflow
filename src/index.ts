@@ -44,7 +44,10 @@ const PORT = process.env.PORT || 3000;
 app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+  credentials: true,
+}));
 app.use(express.json());
 
 // Apply global rate limiter to all API routes
@@ -128,8 +131,18 @@ startServer();
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  await closeQueues();
-  await redisClient.quit();
-  await prisma.$disconnect();
-  process.exit(0);
+  try {
+    await closeQueues();
+
+    if (redisClient) {
+      await redisClient.quit();
+    }
+
+    await prisma.$disconnect();
+
+    process.exit(0);
+  } catch (error) {
+    console.error('Shutdown error:', error);
+    process.exit(1);
+  }
 });
