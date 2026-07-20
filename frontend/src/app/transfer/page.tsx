@@ -17,6 +17,7 @@ export default function TransferPage() {
   const [note, setNote] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,11 +39,12 @@ export default function TransferPage() {
         amount: numAmount,
         description: note 
       });
-      alert('Money sent successfully!');
-      router.push('/dashboard');
+      setIsSuccess(true);
     } catch (err: any) {
       console.error('Failed to send money', err);
-      setError(err.response?.data?.error?.message || 'Failed to send money');
+      const apiError = err.response?.data?.error;
+      const errorMessage = typeof apiError === 'string' ? apiError : apiError?.message || err.message || 'Failed to send money';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -68,7 +70,29 @@ export default function TransferPage() {
           <CardDescription>Enter recipient details and amount.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleTransfer} className="space-y-5">
+          {isSuccess ? (
+            <div className="flex flex-col items-center justify-center py-10 space-y-6 animate-fade-in-up text-center">
+              <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 animate-pulse">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold text-foreground">Transfer Successful!</h3>
+                <p className="text-muted-foreground">
+                  You have successfully sent <span className="font-semibold text-foreground">₹{amount}</span> to {toEmail}.
+                </p>
+              </div>
+              <Button 
+                className="w-full h-12 text-lg rounded-xl mt-4" 
+                onClick={() => router.push('/dashboard')}
+              >
+                Return to Dashboard
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={handleTransfer} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="toEmail">Recipient Email</Label>
               <Input 
@@ -120,7 +144,8 @@ export default function TransferPage() {
             <Button type="submit" disabled={isLoading || !amount || !toEmail} className="w-full h-12 text-lg rounded-xl mt-4">
               {isLoading ? 'Sending...' : 'Send Money'}
             </Button>
-          </form>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>

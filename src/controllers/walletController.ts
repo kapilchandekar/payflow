@@ -67,6 +67,22 @@ export const depositMoney = async (req: Request, res: Response) => {
       });
     }
 
+    const walletCheck = await prisma.wallet.findUnique({
+      where: { userId }
+    });
+
+    if (!walletCheck) {
+      return res.status(404).json({
+        error: 'Wallet not found'
+      });
+    }
+
+    if (walletCheck.isFrozen) {
+      return res.status(400).json({
+        error: 'Your wallet is frozen. Deposits are disabled.'
+      });
+    }
+
     // Update wallet balance
     const wallet = await prisma.wallet.update({
       where: { userId },
@@ -135,12 +151,18 @@ export const withdrawMoney = async (req: Request, res: Response) => {
     // Check current balance
     const wallet = await prisma.wallet.findUnique({
       where: { userId },
-      select: { balance: true }
+      select: { balance: true, isFrozen: true }
     });
 
     if (!wallet) {
       return res.status(404).json({
         error: 'Wallet not found'
+      });
+    }
+
+    if (wallet.isFrozen) {
+      return res.status(400).json({
+        error: 'Your wallet is frozen. Withdrawals are disabled.'
       });
     }
 
@@ -261,20 +283,29 @@ export const getWalletTransactions = async (req: Request, res: Response) => {
       }
     });
 
-    // Format response
-    const formattedTransactions = transactions.map((t: any) => ({
-      id: t.id,
-      fromEmail: t.fromUser?.email || 'System',
-      toEmail: t.toUser?.email || 'System',
-      amount: t.amount.toString(),
-      status: t.status,
-      type: t.transactionType,
-      description: t.description,
-      aiCategory: t.aiCategory,
-      aiCategoryConf: t.aiCategoryConf,
-      aiTags: t.aiTags,
-      createdAt: t.createdAt
-    }));
+    // Format response — determine sent vs received for transfers
+    const formattedTransactions = transactions.map((t: any) => {
+      let type = t.transactionType;
+      
+      // Map 'transfer' to 'sent' or 'received' based on which side the current user is on
+      if (t.transactionType === 'transfer') {
+        type = t.fromUserId === userId ? 'sent' : 'received';
+      }
+
+      return {
+        id: t.id,
+        fromEmail: t.fromUser?.email || 'System',
+        toEmail: t.toUser?.email || 'System',
+        amount: t.amount.toString(),
+        status: t.status,
+        type,
+        description: t.description,
+        aiCategory: t.aiCategory,
+        aiCategoryConf: t.aiCategoryConf,
+        aiTags: t.aiTags,
+        createdAt: t.createdAt
+      };
+    });
 
     res.status(200).json({
       message: 'Transactions retrieved',

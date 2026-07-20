@@ -1,21 +1,32 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useWalletStore } from '@/store/useWalletStore';
+import { useNotificationStore } from '@/store/useNotificationStore';
 import { initSocket, disconnectSocket, getSocket } from '@/lib/socket';
 
 export const useSocket = () => {
   const { isAuthenticated } = useAuthStore();
   const { setBalance, addTransaction } = useWalletStore();
+  const { addNotification } = useNotificationStore();
+  const connectedWithToken = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
       disconnectSocket();
+      connectedWithToken.current = null;
       return;
     }
 
-    const token = localStorage.getItem('accessToken');
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     if (!token) return;
 
+    // If already connected with the same token, don't reconnect
+    if (connectedWithToken.current === token) {
+      const existing = getSocket();
+      if (existing?.connected) return;
+    }
+
+    connectedWithToken.current = token;
     const socket = initSocket(token);
 
     socket.on('balance_update', (data: { balance: string }) => {
@@ -27,8 +38,7 @@ export const useSocket = () => {
     });
 
     socket.on('notification', (data: any) => {
-      // You could add a useNotificationStore here or trigger a toast notification
-      console.log('New notification:', data);
+      addNotification(data.notification || data);
     });
 
     return () => {
@@ -36,7 +46,7 @@ export const useSocket = () => {
       socket.off('new_transaction');
       socket.off('notification');
     };
-  }, [isAuthenticated, setBalance, addTransaction]);
+  }, [isAuthenticated, setBalance, addTransaction, addNotification]);
 
   return getSocket();
 };

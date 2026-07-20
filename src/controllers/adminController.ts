@@ -370,9 +370,11 @@ export const getUserDetails = async (req: Request, res: Response, next: NextFunc
         lastName: user.lastName,
         phone: user.phone,
         role: user.role,
+        isBlocked: user.isBlocked,
         wallet: {
           id: user.wallet?.id,
-          balance: user.wallet?.balance.toString() || '0'
+          balance: user.wallet?.balance.toString() || '0',
+          isFrozen: user.wallet?.isFrozen || false
         },
         transactions: {
           sent: user.sentTransactions.length,
@@ -411,6 +413,7 @@ export const getAllUsers = async (req: Request, res: Response, next: NextFunctio
         firstName: true,
         lastName: true,
         role: true,
+        isBlocked: true,
         wallet: {
           select: { balance: true }
         },
@@ -430,6 +433,7 @@ export const getAllUsers = async (req: Request, res: Response, next: NextFunctio
         email: u.email,
         name: `${u.firstName} ${u.lastName}`,
         role: u.role,
+        isBlocked: u.isBlocked,
         balance: u.wallet?.balance.toString() || '0',
         createdAt: u.createdAt
       })),

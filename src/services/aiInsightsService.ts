@@ -1,4 +1,4 @@
-import { genAI, MODELS } from '../config/gemini';
+import { getGenAI, MODELS } from '../config/gemini';
 import prisma from '../config/database';
 import { createNotification } from './notificationService';
 
@@ -45,7 +45,7 @@ Provide a brief (2-3 sentences), encouraging, and actionable financial insight o
       return { insight: "Fallback Insight: You spent the most on " + Object.keys(categoryTotals)[0] + "." };
     }
 
-    const model = genAI.getGenerativeModel({ model: MODELS.CATEGORISATION });
+    const model = getGenAI().getGenerativeModel({ model: MODELS.CATEGORISATION });
     const result = await model.generateContent(prompt);
     const insightText = result.response.text();
 

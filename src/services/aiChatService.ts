@@ -1,4 +1,4 @@
-import { genAI, MODELS } from '../config/gemini';
+import { getGenAI, MODELS } from '../config/gemini';
 import prisma from '../config/database';
 
 export const processChat = async (userId: number, sessionId: number | null, message: string) => {
@@ -67,7 +67,7 @@ export const processChat = async (userId: number, sessionId: number | null, mess
       return { response: fallbackMsg, sessionId: session.id };
     }
 
-    const model = genAI.getGenerativeModel({ 
+    const model = getGenAI().getGenerativeModel({ 
       model: MODELS.CHAT,
       systemInstruction: systemInstruction 
     });

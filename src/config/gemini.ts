@@ -1,18 +1,21 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize Gemini client
-// Note: We expect GEMINI_API_KEY in the environment variables
-const apiKey = process.env.GEMINI_API_KEY || '';
+let genAIInstance: GoogleGenerativeAI | null = null;
 
-if (!apiKey && process.env.NODE_ENV === 'production') {
-  console.warn('⚠️  GEMINI_API_KEY is not set. AI features will not work.');
-}
-
-export const genAI = new GoogleGenerativeAI(apiKey || 'dummy-key-for-dev');
+export const getGenAI = () => {
+  if (!genAIInstance) {
+    const apiKey = process.env.GEMINI_API_KEY || '';
+    if (!apiKey && process.env.NODE_ENV === 'production') {
+      console.warn('⚠️  GEMINI_API_KEY is not set. AI features will not work.');
+    }
+    genAIInstance = new GoogleGenerativeAI(apiKey || 'dummy-key-for-dev');
+  }
+  return genAIInstance;
+};
 
 // Models to use
 export const MODELS = {
-  CATEGORISATION: 'gemini-1.5-flash',
-  CHAT: 'gemini-1.5-pro',
+  CATEGORISATION: 'gemini-2.5-flash',
+  CHAT: 'gemini-2.5-flash',
   EMBEDDING: 'text-embedding-004',
 };

@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import prisma from '../config/database';
 import { emitToUser } from '../services/socket';
+import { aiCategorisationQueue } from '../config/bullmq';
+import { categoriseTransaction } from '../services/aiCategorisationService';
 
 /**
  * Transfer money between users (P2P)
@@ -81,6 +83,12 @@ export const transferMoney = async (req: Request, res: Response) => {
       });
     }
 
+    if (fromWallet.isFrozen) {
+      return res.status(400).json({
+        error: 'Your wallet is frozen. Transactions are disabled.'
+      });
+    }
+
     // Check balance
     if (fromWallet.balance < amount) {
       return res.status(400).json({
@@ -98,6 +106,12 @@ export const transferMoney = async (req: Request, res: Response) => {
     if (!toWallet) {
       return res.status(404).json({
         error: 'Recipient wallet not found'
+      });
+    }
+
+    if (toWallet.isFrozen) {
+      return res.status(400).json({
+        error: 'Recipient wallet is frozen. Transactions are disabled.'
       });
     }
 
@@ -156,16 +170,59 @@ export const transferMoney = async (req: Request, res: Response) => {
       }
     });
 
-    // Real-time notification to the receiver
-    emitToUser(toUser.id, 'notification', {
-      type: 'success',
-      title: 'Money Received!',
-      message: `${fromEmail} sent you ₹${amount}.`
+    // 1. Create notification in database for receiver
+    const dbNotification = await prisma.notification.create({
+      data: {
+        userId: toUser.id,
+        type: 'TRANSFER',
+        title: 'Money Received!',
+        body: `${fromEmail} sent you ₹${amount}.`
+      }
     });
+
+    // 2. Real-time notification to the receiver
+    emitToUser(toUser.id, 'notification', dbNotification);
     
+    // 3. Emit balance & transaction to receiver
     emitToUser(toUser.id, 'balance_update', {
       balance: transfer.toWallet.balance.toString()
     });
+    emitToUser(toUser.id, 'new_transaction', {
+      transaction: {
+        id: transfer.transaction.id,
+        type: 'received',
+        amount: transfer.transaction.amount.toString(),
+        fromEmail: fromEmail,
+        timestamp: transfer.transaction.createdAt,
+        status: transfer.transaction.status
+      }
+    });
+
+    // 4. Emit balance & transaction to sender
+    emitToUser(fromUserId, 'balance_update', {
+      balance: transfer.fromWallet.balance.toString()
+    });
+    emitToUser(fromUserId, 'new_transaction', {
+      transaction: {
+        id: transfer.transaction.id,
+        type: 'sent',
+        amount: transfer.transaction.amount.toString(),
+        toEmail: toEmail,
+        timestamp: transfer.transaction.createdAt,
+        status: transfer.transaction.status
+      }
+    });
+
+    // 5. Trigger AI categorization in the background
+    const queuedJob = await aiCategorisationQueue.add('categorise', { transactionId: transfer.transaction.id });
+    
+    // Fallback: If Redis is down, perform it synchronously right now
+    if (!queuedJob) {
+      console.log('Redis unavailable, performing AI categorisation synchronously...');
+      categoriseTransaction(transfer.transaction.id).catch(err => 
+        console.error('Sync categorisation failed:', err)
+      );
+    }
 
   } catch (error) {
     console.error('Transfer error:', error);

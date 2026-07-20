@@ -51,7 +51,7 @@ export function DashboardChart({ data }: DashboardChartProps) {
               <Tooltip 
                 contentStyle={{ backgroundColor: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)' }}
                 itemStyle={{ color: 'var(--foreground)' }}
-                formatter={(value: number) => [`₹${value}`, 'Amount']}
+                formatter={(value: any) => [`₹${value}`, 'Amount']}
               />
               <Area 
                 type="monotone" 

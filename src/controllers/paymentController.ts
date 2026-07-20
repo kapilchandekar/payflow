@@ -39,14 +39,23 @@ export const createPaymentIntent = async (req: Request, res: Response, next: Nex
       throw new BadRequestError('Amount cannot exceed $10,000');
     }
 
-    // Check if user exists
+    // Check if user exists and if wallet is frozen
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true }
+      select: { 
+        email: true,
+        wallet: {
+          select: { isFrozen: true }
+        }
+      }
     });
 
     if (!user) {
       throw new NotFoundError('User not found');
+    }
+
+    if (user.wallet?.isFrozen) {
+      throw new ForbiddenError('Your wallet is frozen. Deposits are disabled.');
     }
 
     // 1. Idempotency Check: Check if an intent was already created for this key

@@ -1,4 +1,4 @@
-import { genAI, MODELS } from '../config/gemini';
+import { getGenAI, MODELS } from '../config/gemini';
 import prisma from '../config/database';
 
 const TAXONOMY = `
@@ -49,7 +49,7 @@ Respond strictly in the following JSON format without Markdown formatting:
 }
     `;
 
-    const model = genAI.getGenerativeModel({ model: MODELS.CATEGORISATION });
+    const model = getGenAI().getGenerativeModel({ model: MODELS.CATEGORISATION });
     
     // Fallback if API key is not set properly
     if (!process.env.GEMINI_API_KEY) {
